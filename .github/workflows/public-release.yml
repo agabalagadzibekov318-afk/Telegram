@@ -1,0 +1,150 @@
+name: Publish VelunGram for everyone
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example v0.1.0'
+        required: true
+        default: 'v0.1.0'
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  public-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Validate public release credentials
+        env:
+          VELUN_API_ID: ${{ secrets.VELUN_API_ID }}
+          VELUN_API_HASH: ${{ secrets.VELUN_API_HASH }}
+          VELUN_GOOGLE_SERVICES_B64: ${{ secrets.VELUN_GOOGLE_SERVICES_B64 }}
+          VELUN_KEYSTORE_B64: ${{ secrets.VELUN_KEYSTORE_B64 }}
+          VELUN_KEYSTORE_PASSWORD: ${{ secrets.VELUN_KEYSTORE_PASSWORD }}
+          VELUN_KEY_PASSWORD: ${{ secrets.VELUN_KEY_PASSWORD }}
+          VELUN_KEY_ALIAS: ${{ secrets.VELUN_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          for key in VELUN_API_ID VELUN_API_HASH VELUN_GOOGLE_SERVICES_B64 VELUN_KEYSTORE_B64 VELUN_KEYSTORE_PASSWORD VELUN_KEY_PASSWORD VELUN_KEY_ALIAS; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::Missing required GitHub Actions secret: $key"
+              exit 1
+            fi
+          done
+          if ! [[ "$VELUN_API_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::VELUN_API_ID must be an integer"
+            exit 1
+          fi
+          if ! [[ "$VELUN_API_HASH" =~ ^[0-9a-fA-F]{32}$ ]]; then
+            echo "::error::VELUN_API_HASH must be a 32-character hex string"
+            exit 1
+          fi
+
+      - name: Checkout Telegram fork and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Prepare runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/share/powershell /opt/hostedtoolcache/CodeQL || true
+          df -h .
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK, NDK, and CMake using runner SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -x "$SDKMANAGER" || { echo "sdkmanager missing in the runner"; exit 1; }
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools" "ndk;27.2.12479018" "cmake;3.22.1"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          df -h .
+
+
+      - name: Configure dedicated Telegram API and Firebase
+        env:
+          VELUN_API_ID: ${{ secrets.VELUN_API_ID }}
+          VELUN_API_HASH: ${{ secrets.VELUN_API_HASH }}
+          VELUN_GOOGLE_SERVICES_B64: ${{ secrets.VELUN_GOOGLE_SERVICES_B64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, pathlib, re
+          api_id = os.environ['VELUN_API_ID'].strip()
+          api_hash = os.environ['VELUN_API_HASH'].strip()
+          file = pathlib.Path('TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java')
+          source = file.read_text(encoding='utf-8')
+          source = re.sub(r'public static int APP_ID = [^;]+;', 'public static int APP_ID = ' + api_id + ';', source)
+          source = re.sub(r'public static String APP_HASH = [^;]+;', 'public static String APP_HASH = ' + json.dumps(api_hash) + ';', source)
+          source = source.replace('public static boolean SUPPORTS_PASSKEYS = true;', 'public static boolean SUPPORTS_PASSKEYS = false;')
+          file.write_text(source, encoding='utf-8')
+          services = base64.b64decode(os.environ['VELUN_GOOGLE_SERVICES_B64'])
+          data = json.loads(services)
+          required = {'org.velungram.messenger.web'}
+          found = {c['client_info']['android_client_info']['package_name'] for c in data.get('client', [])}
+          if not required.issubset(found):
+              raise SystemExit('Firebase config missing package: ' + ', '.join(sorted(required - found)))
+          for name in ('TMessagesProj/google-services.json','TMessagesProj_AppStandalone/google-services.json'):
+              pathlib.Path(name).write_bytes(services)
+          PY
+
+      - name: Configure stable signing certificate
+        env:
+          VELUN_KEYSTORE_B64: ${{ secrets.VELUN_KEYSTORE_B64 }}
+          VELUN_KEYSTORE_PASSWORD: ${{ secrets.VELUN_KEYSTORE_PASSWORD }}
+          VELUN_KEY_PASSWORD: ${{ secrets.VELUN_KEY_PASSWORD }}
+          VELUN_KEY_ALIAS: ${{ secrets.VELUN_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          echo "$VELUN_KEYSTORE_B64" | base64 --decode > TMessagesProj/config/release.keystore
+          {
+            printf 'RELEASE_STORE_PASSWORD=%s\n' "$VELUN_KEYSTORE_PASSWORD"
+            printf 'RELEASE_KEY_PASSWORD=%s\n' "$VELUN_KEY_PASSWORD"
+            printf 'RELEASE_KEY_ALIAS=%s\n' "$VELUN_KEY_ALIAS"
+          } >> gradle.properties
+          keytool -list -keystore TMessagesProj/config/release.keystore -storepass "$VELUN_KEYSTORE_PASSWORD" -alias "$VELUN_KEY_ALIAS" > /dev/null
+
+      - name: Build standalone APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :TMessagesProj_AppStandalone:assembleAfatStandalone --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=768m" --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          APK=$(find TMessagesProj_AppStandalone/build/outputs/apk -type f -name '*.apk' | head -n 1)
+          test -n "$APK" && test -f "$APK"
+          cp "$APK" dist/VelunGram.apk
+          ls -lh dist/VelunGram.apk
+
+
+      - name: Upload installable public APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelunGram-public-APK
+          path: dist/VelunGram.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish signed GitHub Release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/VelunGram.apk --title "VelunGram ${GITHUB_REF_NAME}" --notes "Unofficial Telegram Android client. Locally configurable appearance settings; all Telegram authorizations and balances remain server controlled. Download VelunGram.apk and install it. Review source code and permissions before use." --verify-tag

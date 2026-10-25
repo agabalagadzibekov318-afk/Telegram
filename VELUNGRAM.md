@@ -45,3 +45,43 @@ blue accents, system gray grouped surfaces, green switches, and blue outgoing
 bubbles in light/dark modes. Reopen screens or restart the app after changing
 the setting. This is an appearance **approximation**, not an iOS UI port:
 Android navigation/components remain Android-native.
+
+## Public VelunGram builds for other users
+
+VelunGram is **one shared application APK**, not a special build per Telegram
+account. Once the developer provides a valid pair of Telegram application
+credentials, each person logs in **using their own Telegram phone number and
+their own verification code**. Telegram decides how codes are delivered; SMS
+is not guaranteed for third-party apps and can be unavailable. Some codes
+arrive in another Telegram session, by email, or through other methods.
+
+The app developer must register their own api_id and api_hash at
+https://my.telegram.org/apps (users do **not** create them).
+
+For production distribution you must set **all** the following GitHub Actions
+repository secrets (Settings → Secrets and variables → Actions):
+- VELUN_API_ID and VELUN_API_HASH: application credentials for this client
+- VELUN_GOOGLE_SERVICES_B64: Base64 of your own Firebase google-services.json
+  containing the org.velungram.messenger.web Android app
+- VELUN_KEYSTORE_B64: Base64 of your own release signing keystore
+- VELUN_KEYSTORE_PASSWORD: keystore password
+- VELUN_KEY_PASSWORD: signing key password
+- VELUN_KEY_ALIAS: signing alias
+
+Do **not** put these secrets in GitHub commits, issues or chat. Do not
+use the bundled upstream Telegram signing certificate or Telegram's
+official API credentials in a public release.
+
+When secrets are configured, trigger
+[Publish VelunGram for everyone](../../actions/workflows/public-release.yml)
+with "Run workflow". When its APK Artifact is created, the same single
+VelunGram.apk can be shared with multiple Android users.
+
+To get a public GitHub Release download URL, push a version tag such as
+v0.1.0; the workflow will publish the signed APK under
+[Releases](../../releases) **only after the build succeeds**.
+
+Important: a compiled APK is not proof that login, Firebase notifications,
+calls, media and every Telegram feature work. Test all major flows before
+public distribution. Obey https://core.telegram.org/api/terms, identify
+VelunGram as unofficial, and do not misuse user verification codes.

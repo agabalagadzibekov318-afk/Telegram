@@ -70,6 +70,7 @@ public class VelunSettingsActivity extends BaseFragment {
 
         TextView notice = new TextView(context);
         notice.setText("VELUNGRAM • ЛОКАЛЬНОЕ ОФОРМЛЕНИЕ\n" +
+            "VelunGram — неофициальный клиент Telegram. " +
             "Эти значения видны только в предпросмотре на этом устройстве. " +
             "Они не дают Premium, галочку, подарки, Stars или TON.");
         notice.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
