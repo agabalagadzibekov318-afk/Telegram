@@ -315,6 +315,8 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
                     }
                 } else if (id == 2) {
                     presentSettingFragment(new LogoutActivity());
+                } else if (id == 70) {
+                    presentSettingFragment(new VelunSettingsActivity());
                 }
             }
         });
@@ -351,6 +353,7 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
         otherItem = menu.addItem(1, R.drawable.ic_ab_other);
         otherItem.setContentDescription(getString(R.string.AccDescrMoreOptions));
         otherItem.addSubItem(2, R.drawable.msg_leave, getString(R.string.LogOut));
+        otherItem.addSubItem(70, R.drawable.ic_ab_other, "VelunGram — Set");
 
         search = new ProfileActivity.SearchAdapter(this, context) {
             @Override

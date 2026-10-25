@@ -1,0 +1,141 @@
+name: Build VelunGram APK
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/build.yml'
+      - 'TMessagesProj/**'
+      - 'TMessagesProj_AppStandalone/**'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout Telegram fork and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Prepare runner disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake /opt/hostedtoolcache/CodeQL || true
+          df -h .
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK, NDK, and CMake
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Prepare VelunGram Firebase and API configuration
+        env:
+          VELUN_API_ID: ${{ secrets.VELUN_API_ID }}
+          VELUN_API_HASH: ${{ secrets.VELUN_API_HASH }}
+          VELUN_GOOGLE_SERVICES_B64: ${{ secrets.VELUN_GOOGLE_SERVICES_B64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, pathlib, re
+          vars_path = pathlib.Path('TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java')
+          content = vars_path.read_text(encoding='utf-8')
+          api_id = os.environ.get('VELUN_API_ID', '').strip()
+          api_hash = os.environ.get('VELUN_API_HASH', '').strip()
+          if api_id and api_hash:
+              if not api_id.isdigit() or len(api_hash) != 32 or not all(c in '0123456789abcdefABCDEF' for c in api_hash):
+                  raise SystemExit('Invalid VELUN_API_ID / VELUN_API_HASH format')
+              content = re.sub(r'public static int APP_ID = [^;]+;', f'public static int APP_ID = {api_id};', content)
+              content = re.sub(r'public static String APP_HASH = [^;]+;', 'public static String APP_HASH = ' + json.dumps(api_hash) + ';', content)
+          else:
+              print('WARNING: No personal Telegram API credentials provided. APK will not support login until you set both secrets.')
+              content = re.sub(r'public static int APP_ID = [^;]+;', 'public static int APP_ID = 0;', content)
+              content = re.sub(r'public static String APP_HASH = [^;]+;', 'public static String APP_HASH = "";', content)
+          content = content.replace('public static boolean SUPPORTS_PASSKEYS = true;', 'public static boolean SUPPORTS_PASSKEYS = false;')
+          vars_path.write_text(content, encoding='utf-8')
+          package_names = ['org.velungram.messenger', 'org.velungram.messenger.web']
+          service_b64 = os.environ.get('VELUN_GOOGLE_SERVICES_B64', '').strip()
+          if service_b64:
+              decoded = base64.b64decode(service_b64)
+              cfg = json.loads(decoded)
+              names = {c['client_info']['android_client_info']['package_name'] for c in cfg.get('client', [])}
+              if not set(package_names).issubset(names):
+                  raise SystemExit('The Firebase JSON must include both package names: ' + ', '.join(package_names))
+          else:
+              print('WARNING: Missing Firebase secret; using offline placeholders. Push notifications will not work.')
+              cfg = {
+                  'project_info': {'project_number': '111111111111', 'project_id': 'velungram-placeholder', 'storage_bucket': 'velungram-placeholder.appspot.com'},
+                  'client': [{
+                      'client_info': {'mobilesdk_app_id': f'1:111111111111:android:{i:016x}',
+                                      'android_client_info': {'package_name': pkg}},
+                      'oauth_client': [],
+                      'api_key': [{'current_key': 'AIza' + 'A' * 35}],
+                      'services': {}
+                  } for i, pkg in enumerate(package_names, 1)],
+                  'configuration_version': '1'
+              }
+              decoded = json.dumps(cfg, indent=2).encode('utf-8')
+          for path in ['TMessagesProj/google-services.json', 'TMessagesProj_AppStandalone/google-services.json']:
+              pathlib.Path(path).write_bytes(decoded)
+          PY
+
+      - name: Set up installation signing key
+        env:
+          VELUN_KEYSTORE_B64: ${{ secrets.VELUN_KEYSTORE_B64 }}
+          VELUN_KEYSTORE_PASSWORD: ${{ secrets.VELUN_KEYSTORE_PASSWORD }}
+          VELUN_KEY_PASSWORD: ${{ secrets.VELUN_KEY_PASSWORD }}
+          VELUN_KEY_ALIAS: ${{ secrets.VELUN_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          KEYSTORE=TMessagesProj/config/release.keystore
+          if [ -n "${VELUN_KEYSTORE_B64}" ]; then
+            echo "${VELUN_KEYSTORE_B64}" | base64 --decode > "${KEYSTORE}"
+            echo "RELEASE_STORE_PASSWORD=${VELUN_KEYSTORE_PASSWORD}" >> gradle.properties
+            echo "RELEASE_KEY_PASSWORD=${VELUN_KEY_PASSWORD}" >> gradle.properties
+            echo "RELEASE_KEY_ALIAS=${VELUN_KEY_ALIAS}" >> gradle.properties
+          else
+            rm -f "${KEYSTORE}"
+            keytool -genkeypair -noprompt -keystore "${KEYSTORE}" -storepass android -keypass android -alias velungram -keyalg RSA -keysize 3072 -validity 3650 -dname "CN=VelunGram Test Build, O=VelunGram"
+            echo "RELEASE_STORE_PASSWORD=android" >> gradle.properties
+            echo "RELEASE_KEY_PASSWORD=android" >> gradle.properties
+            echo "RELEASE_KEY_ALIAS=velungram" >> gradle.properties
+            echo "WARNING: Temporary signing key. This APK cannot be upgraded over a later build signed by a different key."
+          fi
+
+      - name: Build standalone APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :TMessagesProj_AppStandalone:assembleAfatStandalone --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=768m" --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          APK=$(find TMessagesProj_AppStandalone/build/outputs/apk -type f -name '*.apk' | head -n 1)
+          test -n "$APK" && test -f "$APK"
+          cp "$APK" dist/VelunGram.apk
+          ls -lh dist/VelunGram.apk
+
+      - name: Upload VelunGram APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelunGram-APK
+          path: dist/VelunGram.apk
+          if-no-files-found: error
+          retention-days: 30
