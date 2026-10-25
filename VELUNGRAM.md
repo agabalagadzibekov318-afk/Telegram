@@ -62,7 +62,7 @@ For production distribution you must set **all** the following GitHub Actions
 repository secrets (Settings → Secrets and variables → Actions):
 - VELUN_API_ID and VELUN_API_HASH: application credentials for this client
 - VELUN_GOOGLE_SERVICES_B64: Base64 of your own Firebase google-services.json
-  containing the org.velungram.messenger.web Android app
+  containing Android clients for org.telegram.messenger (library module)\n  and org.velungram.messenger.web (standalone application)
 - VELUN_KEYSTORE_B64: Base64 of your own release signing keystore
 - VELUN_KEYSTORE_PASSWORD: keystore password
 - VELUN_KEY_PASSWORD: signing key password
@@ -85,3 +85,5 @@ Important: a compiled APK is not proof that login, Firebase notifications,
 calls, media and every Telegram feature work. Test all major flows before
 public distribution. Obey https://core.telegram.org/api/terms, identify
 VelunGram as unofficial, and do not misuse user verification codes.
+
+Build note (2026-10-26): the shared library module applies the Google Services plugin with package `org.telegram.messenger`, so Firebase configuration must include that Android client as well. Development placeholders now include it. Firebase projects without it fail at `:TMessagesProj:processStandaloneGoogleServices`.

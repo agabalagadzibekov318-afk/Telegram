@@ -96,7 +96,7 @@ jobs:
           file.write_text(source, encoding='utf-8')
           services = base64.b64decode(os.environ['VELUN_GOOGLE_SERVICES_B64'])
           data = json.loads(services)
-          required = {'org.velungram.messenger.web'}
+          required = {'org.telegram.messenger', 'org.velungram.messenger.web'}
           found = {c['client_info']['android_client_info']['package_name'] for c in data.get('client', [])}
           if not required.issubset(found):
               raise SystemExit('Firebase config missing package: ' + ', '.join(sorted(required - found)))
