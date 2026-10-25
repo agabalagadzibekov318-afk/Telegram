@@ -79,6 +79,8 @@ public class VelunSettingsActivity extends BaseFragment {
             AndroidUtilities.dp(20), AndroidUtilities.dp(16));
         rows.addView(notice);
 
+        addIOSAppearanceToggle(context);
+
         addToggle(context, "Premium • визуальный предпросмотр",
             VelunConfig.isLocalPremium, true);
         addToggle(context, "Галочка • визуальный предпросмотр",
@@ -112,6 +114,24 @@ public class VelunSettingsActivity extends BaseFragment {
         updatePreview();
 
         return fragmentView = root;
+    }
+
+    private void addIOSAppearanceToggle(Context context) {
+        final String title = "iOS-оформление (цвета и элементы)";
+        TextCheckCell cell = new TextCheckCell(context);
+        cell.setTextAndCheck(title, VelunConfig.iosAppearance, true);
+        cell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+        rows.addView(cell, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, AndroidUtilities.dp(51)));
+        cell.setOnClickListener(v -> {
+            VelunConfig.iosAppearance = !VelunConfig.iosAppearance;
+            cell.setTextAndCheck(title, VelunConfig.iosAppearance, true);
+            VelunConfig.saveSettings();
+            updatePreview();
+            android.widget.Toast.makeText(context,
+                "Цвета iOS применяются к новым экранам. Перезапустите приложение для полного обновления.",
+                android.widget.Toast.LENGTH_LONG).show();
+        });
     }
 
     private void addToggle(Context context, String text, boolean state, boolean premium) {
@@ -192,7 +212,7 @@ public class VelunSettingsActivity extends BaseFragment {
         if (preview == null) {
             return;
         }
-        String status = "Premium: " + (VelunConfig.isLocalPremium ? "ON" : "OFF")
+        String status = "iOS: " + (VelunConfig.iosAppearance ? "ON" : "OFF") + " • Premium: " + (VelunConfig.isLocalPremium ? "ON" : "OFF")
             + " • Галочка: " + (VelunConfig.isVerifiedGalochka ? "ON" : "OFF")
             + " • ⭐ " + VelunConfig.starsBalance
             + " • TON " + VelunConfig.tonBalance

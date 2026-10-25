@@ -37,3 +37,11 @@ Telegram has additional platform/service dependencies; a successful build does n
 by itself establish that all Telegram features work.
 
 Licensing and Telegram attribution remain governed by upstream LICENSE/README.
+
+## iOS-inspired appearance
+
+Toggle **VelunGram — Set → iOS-оформление**. The local theme uses iOS-style
+blue accents, system gray grouped surfaces, green switches, and blue outgoing
+bubbles in light/dark modes. Reopen screens or restart the app after changing
+the setting. This is an appearance **approximation**, not an iOS UI port:
+Android navigation/components remain Android-native.

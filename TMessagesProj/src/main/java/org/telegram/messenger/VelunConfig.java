@@ -13,6 +13,7 @@ public final class VelunConfig {
 
     public static boolean isLocalPremium = false;
     public static boolean isVerifiedGalochka = false;
+    public static boolean iosAppearance = false;
     public static String fakeRating = "0";
     public static String nftUsername = "";
     public static String nftPhone = "";
@@ -37,6 +38,7 @@ public final class VelunConfig {
             return;
         }
 
+        iosAppearance = preferences.getBoolean("ios_appearance", false);
         isLocalPremium = preferences.getBoolean("premium_preview", false);
         isVerifiedGalochka = preferences.getBoolean("verification_preview", false);
         fakeRating = preferences.getString("rating_preview", "0");
@@ -54,6 +56,7 @@ public final class VelunConfig {
         }
 
         preferences.edit()
+            .putBoolean("ios_appearance", iosAppearance)
             .putBoolean("premium_preview", isLocalPremium)
             .putBoolean("verification_preview", isVerifiedGalochka)
             .putString("rating_preview", fakeRating)

@@ -8991,6 +8991,13 @@ public class Theme {
     }
 
     public static int getColor(int key, boolean[] isDefault, boolean ignoreAnimation) {
+        // VelunGram: device-only iOS-inspired palette; does not affect network state.
+        if (org.telegram.messenger.VelunAppearance.isEnabled()) {
+            int velunColor = org.telegram.messenger.VelunAppearance.colorForKey(key);
+            if (velunColor != 0) {
+                return velunColor;
+            }
+        }
         if (!ignoreAnimation && animatingColors != null) {
             int index = animatingColors.indexOfKey(key);
             if (index >= 0) {
