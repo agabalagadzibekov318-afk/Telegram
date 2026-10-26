@@ -2991,13 +2991,11 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             }
                         }
 
-                        confirmView.animateProgress(()->{
-                            confirmView.dismiss();
-                            AndroidUtilities.runOnUIThread(()-> {
-                                onNextPressed(code);
-                                floatingButton.progressView.sync(confirmView.fabButton.progressView);
-                            }, 150);
-                        });
+                        // An animation callback can be skipped on heavily customized Android
+                        // or when system animations are disabled, leaving the login button stuck.
+                        // Do not gate the actual Telegram code request on an animation.
+                        confirmView.dismiss();
+                        AndroidUtilities.runOnUIThread(() -> onNextPressed(code), 100);
                     }
                 });
                 phoneNumberConfirmView.show();
@@ -3215,6 +3213,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             phoneInputData.phoneNumber = "+" + codeField.getText() + " " + phoneField.getText();
             phoneInputData.country = currentCountry;
             phoneInputData.patterns = phoneFormatMap.get(codeField.getText().toString());
+            android.widget.Toast.makeText(getParentActivity(),
+                "VelunGram: отправляем запрос кода в Telegram…",
+                android.widget.Toast.LENGTH_SHORT).show();
             int reqId = ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
                 nextPressed = false;
                 if (error == null) {
@@ -3238,7 +3239,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 || error.text.contains("API_ID_INVALID")
                                 || error.text.contains("API_HASH_INVALID")) {
                             needShowAlert("VelunGram — вход недоступен",
-                                "Telegram отклонил API-ключ этого клиента (" + error.text + ").\\n\\n" +
+                                "Telegram отклонил API-ключ этого клиента (" + error.text + ").\n\n" +
                                 "Сейчас используется тестовый ключ. Для отправки настоящего кода нужен API ID и API HASH, " +
                                 "зарегистрированные для VelunGram на my.telegram.org. " +
                                 "Повторные попытки с тем же ключом не помогут.");
@@ -3286,6 +3287,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                                 "Не удалось получить ответ от Telegram. Проверьте интернет и попробуйте ещё раз. " +
                                 "Если ошибка повторится, возможна блокировка тестового API-ключа.");
                         }
+                    } else {
+                        needShowAlert("VelunGram — ошибка входа",
+                            "Сервер Telegram не прислал описание ошибки. Проверьте подключение и действительность API-ключей.");
                     }
                 }
                 if (!isRequestingFirebaseSms) {
