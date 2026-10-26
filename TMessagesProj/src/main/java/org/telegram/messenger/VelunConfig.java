@@ -14,6 +14,10 @@ public final class VelunConfig {
     public static boolean isLocalPremium = false;
     public static boolean isVerifiedGalochka = false;
     public static boolean iosAppearance = false;
+    /** 0 = default, 1 = Midnight Amethyst, 2 = Neon Plum. */
+    public static int themeMode = 1;
+    public static boolean performanceMode = false;
+    private static final String PREVIOUS_LITE_FLAGS = "previous_lite_flags";
     public static String fakeRating = "0";
     public static String nftUsername = "";
     public static String nftPhone = "";
@@ -39,6 +43,8 @@ public final class VelunConfig {
         }
 
         iosAppearance = preferences.getBoolean("ios_appearance", false);
+        themeMode = preferences.getInt("theme_mode", 1);
+        performanceMode = preferences.getBoolean("performance_mode", false);
         isLocalPremium = preferences.getBoolean("premium_preview", false);
         isVerifiedGalochka = preferences.getBoolean("verification_preview", false);
         fakeRating = preferences.getString("rating_preview", "0");
@@ -49,6 +55,38 @@ public final class VelunConfig {
         gramBalance = preferences.getString("gram_preview", "0");
     }
 
+    /** Available on welcome/login screens, before Telegram authentication. */
+    public static synchronized void setPerformanceMode(boolean enabled) {
+        if (performanceMode == enabled) {
+            return;
+        }
+        SharedPreferences prefs = preferences();
+        if (prefs == null) {
+            return;
+        }
+        if (enabled) {
+            prefs.edit().putInt(PREVIOUS_LITE_FLAGS, LiteMode.getValue(true)).apply();
+            LiteMode.setAllFlags(LiteMode.PRESET_POWER_SAVER);
+        } else {
+            LiteMode.setAllFlags(prefs.getInt(PREVIOUS_LITE_FLAGS, LiteMode.PRESET_LOW));
+        }
+        performanceMode = enabled;
+        saveSettings();
+    }
+
+    public static synchronized void cycleTheme() {
+        themeMode = (themeMode + 1) % 3;
+        saveSettings();
+    }
+
+    public static String themeName() {
+        switch (themeMode) {
+            case 1: return "Чёрный аметист";
+            case 2: return "Неоновая слива";
+            default: return "Обычная";
+        }
+    }
+
     public static synchronized void saveSettings() {
         SharedPreferences preferences = preferences();
         if (preferences == null) {
@@ -57,6 +95,8 @@ public final class VelunConfig {
 
         preferences.edit()
             .putBoolean("ios_appearance", iosAppearance)
+            .putInt("theme_mode", themeMode)
+            .putBoolean("performance_mode", performanceMode)
             .putBoolean("premium_preview", isLocalPremium)
             .putBoolean("verification_preview", isVerifiedGalochka)
             .putString("rating_preview", fakeRating)

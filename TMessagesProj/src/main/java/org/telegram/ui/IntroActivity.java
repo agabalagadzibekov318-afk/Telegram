@@ -47,6 +47,9 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.ImageView;
+
+import org.telegram.messenger.VelunConfig;
 
 import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
@@ -141,7 +144,7 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
                 LocaleController.getString(R.string.Page6Title)
         };
         messages = new String[]{
-                LocaleController.getString(R.string.Page1Message),
+                "Добро пожаловать в VelunGram — стильный клиент Telegram.",
                 LocaleController.getString(R.string.Page2Message),
                 LocaleController.getString(R.string.Page3Message),
                 LocaleController.getString(R.string.Page5Message),
@@ -153,11 +156,10 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
 
     @Override
     public View createView(Context context) {
-        logoDrawable = context.getResources().getDrawable(R.drawable.telegram_logo).mutate();
-        logoDrawable.setBounds(0, dp(8.666f), dp(115), dp(35));
-        SpannableStringBuilder ssb = new SpannableStringBuilder(LocaleController.getString(R.string.Page1Title));
-        ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        titles[0] = ssb;
+        VelunConfig.loadSettings();
+        logoDrawable = context.getResources().getDrawable(R.drawable.velungram_launcher).mutate();
+        logoDrawable.setBounds(0, 0, dp(108), dp(108));
+        titles[0] = "VelunGram";
 
 
         actionBar.setAddToContainer(false);
@@ -248,7 +250,9 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         frameContainerView.addView(frameLayout2, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 0, 78, 0, 0));
 
         TextureView textureView = new TextureView(context);
-        frameLayout2.addView(textureView, LayoutHelper.createFrame(ICON_WIDTH_DP, ICON_HEIGHT_DP, Gravity.CENTER));
+        if (!VelunConfig.performanceMode) {
+            frameLayout2.addView(textureView, LayoutHelper.createFrame(ICON_WIDTH_DP, ICON_HEIGHT_DP, Gravity.CENTER));
+        }
         textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
@@ -291,6 +295,11 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
 
             }
         });
+
+        ImageView velunLogo = new ImageView(context);
+        velunLogo.setImageResource(R.drawable.velungram_launcher);
+        velunLogo.setContentDescription("VelunGram");
+        frameLayout2.addView(velunLogo, LayoutHelper.createFrame(110, 110, Gravity.CENTER));
 
         viewPager = new ViewPager(context);
         viewPager.setAdapter(new IntroAdapter());
@@ -423,6 +432,41 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         });
 
         frameContainerView.addView(themeFrameLayout, LayoutHelper.createFrame(64, 64, Gravity.TOP | Gravity.RIGHT, 0, themeMargin, themeMargin, 0));
+
+        // Guest controls: change theme and enable Telegram Lite Mode without signing in.
+        TextView guestTheme = new TextView(context);
+        guestTheme.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        guestTheme.setPadding(dp(10), dp(7), dp(10), dp(7));
+        guestTheme.setTextColor(0xffcba9ff);
+        guestTheme.setText("✦ " + VelunConfig.themeName());
+        frameContainerView.addView(guestTheme, LayoutHelper.createFrame(210, 38, Gravity.TOP | Gravity.LEFT, 12, 32, 0, 0));
+        guestTheme.setOnClickListener(v -> {
+            VelunConfig.cycleTheme();
+            guestTheme.setText("✦ " + VelunConfig.themeName());
+            updateColors(true);
+        });
+
+        TextView guestPerformance = new TextView(context);
+        guestPerformance.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        guestPerformance.setPadding(dp(10), dp(7), dp(10), dp(7));
+        guestPerformance.setTextColor(0xffcba9ff);
+        guestPerformance.setText(VelunConfig.performanceMode ? "⚡ Турбо: ВКЛ" : "⚡ Турбо: ВЫКЛ");
+        frameContainerView.addView(guestPerformance, LayoutHelper.createFrame(210, 38, Gravity.TOP | Gravity.LEFT, 12, 74, 0, 0));
+        guestPerformance.setOnClickListener(v -> {
+            VelunConfig.setPerformanceMode(!VelunConfig.performanceMode);
+            guestPerformance.setText(VelunConfig.performanceMode ? "⚡ Турбо: ВКЛ" : "⚡ Турбо: ВЫКЛ");
+            if (VelunConfig.performanceMode) {
+                textureView.setVisibility(View.GONE);
+                if (eglThread != null) {
+                    eglThread.shutdown();
+                    eglThread = null;
+                }
+            } else if (textureView.getParent() == null) {
+                frameLayout2.addView(textureView, 0, LayoutHelper.createFrame(ICON_WIDTH_DP, ICON_HEIGHT_DP, Gravity.CENTER));
+            } else {
+                textureView.setVisibility(View.VISIBLE);
+            }
+        });
 
         fragmentView = scrollView;
 

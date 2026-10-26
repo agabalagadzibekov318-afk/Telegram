@@ -81,6 +81,8 @@ public class VelunSettingsActivity extends BaseFragment {
         rows.addView(notice);
 
         addIOSAppearanceToggle(context);
+        addThemeSelection(context);
+        addPerformanceToggle(context);
 
         addToggle(context, "Premium • визуальный предпросмотр",
             VelunConfig.isLocalPremium, true);
@@ -115,6 +117,38 @@ public class VelunSettingsActivity extends BaseFragment {
         updatePreview();
 
         return fragmentView = root;
+    }
+
+    private void addThemeSelection(Context context) {
+        TextDetailCell cell = new TextDetailCell(context);
+        cell.setTextAndValue("Чёрно-фиолетовые темы", VelunConfig.themeName(), true);
+        cell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+        rows.addView(cell, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, AndroidUtilities.dp(68)));
+        cell.setOnClickListener(v -> new AlertDialog.Builder(context)
+            .setTitle("Тема VelunGram")
+            .setItems(new String[]{"Обычная", "Чёрный аметист", "Неоновая слива"}, (d, which) -> {
+                VelunConfig.themeMode = which;
+                VelunConfig.saveSettings();
+                cell.setTextAndValue("Чёрно-фиолетовые темы", VelunConfig.themeName(), true);
+                android.widget.Toast.makeText(context, "Перезапустите VelunGram для применения темы.", android.widget.Toast.LENGTH_SHORT).show();
+            }).show());
+    }
+
+    private void addPerformanceToggle(Context context) {
+        final String title = "⚡ Турбо для слабых устройств";
+        TextCheckCell cell = new TextCheckCell(context);
+        cell.setTextAndCheck(title, VelunConfig.performanceMode, true);
+        cell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+        rows.addView(cell, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, AndroidUtilities.dp(51)));
+        cell.setOnClickListener(v -> {
+            VelunConfig.setPerformanceMode(!VelunConfig.performanceMode);
+            cell.setTextAndCheck(title, VelunConfig.performanceMode, true);
+            android.widget.Toast.makeText(context,
+                "Lite Mode: тяжёлые анимации, эффекты и автопроигрывание отключены. Для максимального эффекта перезапустите приложение.",
+                android.widget.Toast.LENGTH_LONG).show();
+        });
     }
 
     private void addIOSAppearanceToggle(Context context) {

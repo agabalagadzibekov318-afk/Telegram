@@ -142,6 +142,7 @@ import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SRPHelper;
 import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.VelunConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
@@ -2017,11 +2018,20 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
             setOrientation(VERTICAL);
             setGravity(Gravity.CENTER);
+            VelunConfig.loadSettings();
+
+            if (activityMode != MODE_CHANGE_PHONE_NUMBER) {
+                ImageView velunLoginLogo = new ImageView(context);
+                velunLoginLogo.setImageResource(R.drawable.velungram_launcher);
+                velunLoginLogo.setContentDescription("VelunGram");
+                addView(velunLoginLogo, LayoutHelper.createLinear(74, 74, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 8));
+            }
 
             titleView = new TextView(context);
             titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
             titleView.setTypeface(AndroidUtilities.bold());
-            titleView.setText(getString(activityMode == MODE_CHANGE_PHONE_NUMBER ? R.string.ChangePhoneNewNumber : R.string.YourNumber));
+            titleView.setText(activityMode == MODE_CHANGE_PHONE_NUMBER ?
+                    getString(R.string.ChangePhoneNewNumber) : "VelunGram");
             titleView.setGravity(Gravity.CENTER);
             titleView.setLineSpacing(dp(2), 1.0f);
             addView(titleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 32, 0, 32, 0));
@@ -2048,11 +2058,25 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             });
 
             subtitleView = new LinkSpanDrawable.LinksTextView(context);
-            subtitleView.setText(getString(activityMode == MODE_CHANGE_PHONE_NUMBER ? R.string.ChangePhoneHelp : R.string.StartText));
+            subtitleView.setText(activityMode == MODE_CHANGE_PHONE_NUMBER ?
+                    getString(R.string.ChangePhoneHelp) : "Введите номер телефона, чтобы войти в VelunGram.");
             subtitleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
             subtitleView.setGravity(Gravity.CENTER);
             subtitleView.setLineSpacing(dp(2), 1.0f);
             addView(subtitleView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 32, 8, 32, 0));
+
+            if (activityMode != MODE_CHANGE_PHONE_NUMBER) {
+                TextView guestTurbo = new TextView(context);
+                guestTurbo.setGravity(Gravity.CENTER);
+                guestTurbo.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                guestTurbo.setTextColor(0xffb890ff);
+                guestTurbo.setText(VelunConfig.performanceMode ? "⚡ Турбо-режим: ВКЛ" : "⚡ Включить турбо-режим");
+                addView(guestTurbo, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 34, Gravity.CENTER_HORIZONTAL, 16, 6, 16, 0));
+                guestTurbo.setOnClickListener(v -> {
+                    VelunConfig.setPerformanceMode(!VelunConfig.performanceMode);
+                    guestTurbo.setText(VelunConfig.performanceMode ? "⚡ Турбо-режим: ВКЛ" : "⚡ Включить турбо-режим");
+                });
+            }
 
             countryButton = new TextViewSwitcher(context);
             countryButton.setFactory(() -> {
