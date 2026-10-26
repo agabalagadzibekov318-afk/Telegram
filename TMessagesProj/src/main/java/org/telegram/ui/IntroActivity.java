@@ -249,52 +249,9 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         frameLayout2 = new FrameLayout(context);
         frameContainerView.addView(frameLayout2, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 0, 78, 0, 0));
 
-        TextureView textureView = new TextureView(context);
-        if (!VelunConfig.performanceMode) {
-            frameLayout2.addView(textureView, LayoutHelper.createFrame(ICON_WIDTH_DP, ICON_HEIGHT_DP, Gravity.CENTER));
-        }
-        textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
-                if (eglThread == null && surface != null) {
-                    eglThread = new EGLThread(surface);
-                    eglThread.setSurfaceTextureSize(width, height);
-                    eglThread.postRunnable(()->{
-                        float time = (System.currentTimeMillis() - currentDate) / 1000.0f;
-                        Intro.setPage(currentViewPagerPage);
-                        Intro.setDate(time);
-                        Intro.onDrawFrame(0);
-                        if (eglThread != null && eglThread.isAlive() && eglThread.eglDisplay != null && eglThread.eglSurface != null) {
-                            try {
-                                eglThread.egl10.eglSwapBuffers(eglThread.eglDisplay, eglThread.eglSurface);
-                            } catch (Exception ignored) {} // If display or surface already destroyed
-                        }
-                    });
-                    eglThread.postRunnable(eglThread.drawRunnable);
-                }
-            }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, final int width, final int height) {
-                if (eglThread != null) {
-                    eglThread.setSurfaceTextureSize(width, height);
-                }
-            }
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
-                if (eglThread != null) {
-                    eglThread.shutdown();
-                    eglThread = null;
-                }
-                return true;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
-
-            }
-        });
+        // VelunGram branding replaces the original Telegram OpenGL welcome animation.
+        // A static vector logo avoids an expensive continuous GPU render loop on weak phones.
+        frameLayout2.setMinimumHeight(dp(ICON_HEIGHT_DP));
 
         ImageView velunLogo = new ImageView(context);
         velunLogo.setImageResource(R.drawable.velungram_launcher);
@@ -366,8 +323,10 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
             protected void onDraw(Canvas canvas) {
                 super.onDraw(canvas);
                 AndroidUtilities.rectTmp.set(0, 0, getMeasuredWidth(), getMeasuredHeight());
-                cellFlickerDrawable.draw(canvas, AndroidUtilities.rectTmp, getMeasuredHeight() / 2f, null);
-                invalidate();
+                if (!VelunConfig.performanceMode) {
+                    cellFlickerDrawable.draw(canvas, AndroidUtilities.rectTmp, getMeasuredHeight() / 2f, null);
+                    invalidate();
+                }
             }
 
             @Override
@@ -455,17 +414,7 @@ public class IntroActivity extends BaseFragment implements NotificationCenter.No
         guestPerformance.setOnClickListener(v -> {
             VelunConfig.setPerformanceMode(!VelunConfig.performanceMode);
             guestPerformance.setText(VelunConfig.performanceMode ? "⚡ Турбо: ВКЛ" : "⚡ Турбо: ВЫКЛ");
-            if (VelunConfig.performanceMode) {
-                textureView.setVisibility(View.GONE);
-                if (eglThread != null) {
-                    eglThread.shutdown();
-                    eglThread = null;
-                }
-            } else if (textureView.getParent() == null) {
-                frameLayout2.addView(textureView, 0, LayoutHelper.createFrame(ICON_WIDTH_DP, ICON_HEIGHT_DP, Gravity.CENTER));
-            } else {
-                textureView.setVisibility(View.VISIBLE);
-            }
+            // Core LiteMode flags update immediately. Reopen the client for full effect.
         });
 
         fragmentView = scrollView;
