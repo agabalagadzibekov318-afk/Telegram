@@ -1,0 +1,40 @@
+name: Publish VelunGram direct APK
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/direct-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Download verified APK from successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download 40353443233 --repo "$GITHUB_REPOSITORY" --name VelunGram-APK --dir dist
+          test -s dist/VelunGram.apk
+          file dist/VelunGram.apk
+          ls -lh dist/VelunGram.apk
+          sha256sum dist/VelunGram.apk
+      - name: Publish direct APK URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=velungram-purple-preview
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/VelunGram.apk --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" dist/VelunGram.apk --repo "$GITHUB_REPOSITORY" --title "VelunGram Purple Preview" --notes "Standalone VelunGram APK (Android test build). Features: Velun logo, purple themes, optional Turbo mode. Telegram sample API credentials may prevent login. Test signing key may require uninstalling earlier versions." --prerelease --target master
+          fi
