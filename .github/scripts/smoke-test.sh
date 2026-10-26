@@ -14,16 +14,16 @@ trap save_logs EXIT
 adb wait-for-device
 echo "Testing Android $(adb shell getprop ro.build.version.release)"
 # Old emulator package managers sometimes hang during streamed installs.
-if ! timeout 250 adb install --no-streaming -r dist/VelunGram.apk; then
+if ! timeout 250 adb install -r dist/VelunGram.apk; then
   echo "::warning::Install failed on first attempt; restarting ADB and retrying once"
   adb kill-server || true
   adb start-server || true
   adb wait-for-device
-  timeout 250 adb install --no-streaming -r dist/VelunGram.apk
+  timeout 250 adb install -r dist/VelunGram.apk
 fi
 adb logcat -c || true
 # Explicit launcher alias; provides better diagnostics than monkey's silent failures.
-adb shell am start -W -n "$PKG/org.telegram.messenger.DefaultIcon"
+adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 || true
 sleep 30
 save_logs
 if ! adb shell pidof "$PKG" >/dev/null 2>&1; then
