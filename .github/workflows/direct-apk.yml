@@ -1,10 +1,9 @@
 name: Publish VelunGram direct APK
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - '.github/workflows/direct-apk.yml'
+  workflow_run:
+    workflows: ['Build VelunGram APK']
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -13,21 +12,44 @@ permissions:
 
 jobs:
   publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Download verified APK from successful build
+      - name: Verify build matches current master
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "$BUILD_SHA" ]; then
+            CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq '.object.sha')
+            if [ "$CURRENT" != "$BUILD_SHA" ]; then
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              echo "Skipping outdated build $BUILD_SHA; current master is $CURRENT"
+              exit 0
+            fi
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+      - name: Download verified APK from successful build
+        if: steps.source.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
           mkdir -p dist
-          gh run download 40353443233 --repo "$GITHUB_REPOSITORY" --name VelunGram-APK --dir dist
+          if [ -z "$BUILD_RUN_ID" ]; then
+            BUILD_RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          gh run download "$BUILD_RUN_ID" --repo "$GITHUB_REPOSITORY" --name VelunGram-APK --dir dist
           test -s dist/VelunGram.apk
           file dist/VelunGram.apk
           ls -lh dist/VelunGram.apk
           sha256sum dist/VelunGram.apk
       - name: Publish direct APK URL
+        if: steps.source.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
