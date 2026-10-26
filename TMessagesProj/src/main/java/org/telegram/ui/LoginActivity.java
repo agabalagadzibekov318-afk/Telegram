@@ -7867,7 +7867,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             avatarImage.setRoundRadius(AndroidUtilities.dp(64));
             avatarDrawable.setAvatarType(AvatarDrawable.AVATAR_TYPE_REGISTER);
             avatarDrawable.setInfo(5, null, null);
-            avatarImage.setImageDrawable(avatarDrawable);
+            // VelunGram logo is the initial local placeholder; users can still choose a real photo.
+            avatarImage.setImageDrawable(context.getDrawable(R.drawable.velungram_launcher));
             avatarContainer.addView(avatarImage, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -7888,7 +7889,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     avatar = null;
                     avatarBig = null;
                     showAvatarProgress(false, true);
-                    avatarImage.setImage(null, null, avatarDrawable, null);
+                    avatarImage.setImageDrawable(getContext().getDrawable(R.drawable.velungram_launcher));
                     avatarEditor.setAnimation(cameraDrawable);
                     cameraDrawable.setCurrentFrame(0);
                     isCameraWaitAnimationAllowed = true;
