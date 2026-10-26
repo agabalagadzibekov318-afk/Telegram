@@ -26,9 +26,13 @@ jobs:
           if [ -n "$BUILD_SHA" ]; then
             CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq '.object.sha')
             if [ "$CURRENT" != "$BUILD_SHA" ]; then
-              echo "publish=false" >> "$GITHUB_OUTPUT"
-              echo "Skipping outdated build $BUILD_SHA; current master is $CURRENT"
-              exit 0
+              # Workflow-only commits after the source build do not invalidate its APK.
+              ONLY_WORKFLOW=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BUILD_SHA...master" --jq '.files | map(.filename) | all(. == ".github/workflows/direct-apk.yml")')
+              if [ "$ONLY_WORKFLOW" != "true" ]; then
+                echo "publish=false" >> "$GITHUB_OUTPUT"
+                echo "Skipping outdated source build $BUILD_SHA; current master is $CURRENT"
+                exit 0
+              fi
             fi
           fi
           echo "publish=true" >> "$GITHUB_OUTPUT"
