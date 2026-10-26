@@ -719,6 +719,10 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             items.add(UItem.asShadow(null));
         }
 
+        // VelunGram is the first full-width settings entry, with a double-height HUD preview.
+        org.telegram.messenger.VelunConfig.loadSettings();
+        items.add(UItem.asCustom(VelunHudView.createSettingsTile(getContext(),
+                () -> presentSettingFragment(new VelunSettingsActivity())), 136));
         items.add(SettingCell.Factory.of(1, IconBackgroundColors.BLUE.top, IconBackgroundColors.BLUE.bottom, R.drawable.settings_account, getString(R.string.SettingsAccount), getString(R.string.SettingsAccountInfo)));
         items.add(SettingCell.Factory.of(2, IconBackgroundColors.ORANGE.top, IconBackgroundColors.ORANGE.bottom, R.drawable.settings_chat, getString(R.string.SettingsChat), getString(R.string.SettingsChatInfo)));
         items.add(SettingCell.Factory.of(3, IconBackgroundColors.GREEN.top, IconBackgroundColors.GREEN.bottom, R.drawable.settings_privacy, getString(R.string.SettingsPrivacySecurity), getString(R.string.SettingsPrivacySecurityInfo)));

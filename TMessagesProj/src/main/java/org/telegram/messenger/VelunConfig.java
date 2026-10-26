@@ -17,6 +17,8 @@ public final class VelunConfig {
     /** 0 = default, 1 = Midnight Amethyst, 2 = Neon Plum. */
     public static int themeMode = 1;
     public static boolean performanceMode = false;
+    public static boolean demoAnimations = true;
+    public static int demoGift = 0;
     private static final String PREVIOUS_LITE_FLAGS = "previous_lite_flags";
     public static String fakeRating = "0";
     public static String nftUsername = "";
@@ -45,6 +47,8 @@ public final class VelunConfig {
         iosAppearance = preferences.getBoolean("ios_appearance", false);
         themeMode = preferences.getInt("theme_mode", 1);
         performanceMode = preferences.getBoolean("performance_mode", false);
+        demoAnimations = preferences.getBoolean("demo_animations", true);
+        demoGift = Math.max(0, Math.min(4, preferences.getInt("demo_gift", 0)));
         isLocalPremium = preferences.getBoolean("premium_preview", false);
         isVerifiedGalochka = preferences.getBoolean("verification_preview", false);
         fakeRating = preferences.getString("rating_preview", "0");
@@ -97,6 +101,8 @@ public final class VelunConfig {
             .putBoolean("ios_appearance", iosAppearance)
             .putInt("theme_mode", themeMode)
             .putBoolean("performance_mode", performanceMode)
+            .putBoolean("demo_animations", demoAnimations)
+            .putInt("demo_gift", demoGift)
             .putBoolean("premium_preview", isLocalPremium)
             .putBoolean("verification_preview", isVerifiedGalochka)
             .putString("rating_preview", fakeRating)

@@ -28,6 +28,7 @@ import org.telegram.ui.Cells.TextDetailCell;
 public class VelunSettingsActivity extends BaseFragment {
     private LinearLayout rows;
     private TextDetailCell preview;
+    private View hudPreview;
 
     private interface ValueSaver {
         void save(String value);
@@ -68,6 +69,13 @@ public class VelunSettingsActivity extends BaseFragment {
             ScrollView.LayoutParams.WRAP_CONTENT
         ));
 
+        hudPreview = VelunHudView.createPreview(context);
+        LinearLayout.LayoutParams hudParams = new LinearLayout.LayoutParams(-1, -2);
+        hudParams.setMargins(AndroidUtilities.dp(12), AndroidUtilities.dp(4),
+                AndroidUtilities.dp(12), AndroidUtilities.dp(12));
+        rows.addView(hudPreview, hudParams);
+        VelunHudView.animate(hudPreview);
+
         TextView notice = new TextView(context);
         notice.setText("VELUNGRAM • ЛОКАЛЬНОЕ ОФОРМЛЕНИЕ\n" +
             "VelunGram — неофициальный клиент Telegram. " +
@@ -83,6 +91,13 @@ public class VelunSettingsActivity extends BaseFragment {
         addIOSAppearanceToggle(context);
         addThemeSelection(context);
         addPerformanceToggle(context);
+        addAnimationToggle(context);
+        addDemoAction(context, "◈ Открыть HUD профиля", "Проверить все визуальные значения",
+                () -> VelunHudView.showPreviewDialog(context));
+        addDemoAction(context, "🎁 Выбрать визуальный подарок", "Подарок появится в HUD",
+                () -> VelunHudView.showGiftDialog(context, this::updatePreview));
+        addDemoAction(context, "✦ Тест плавной анимации", "Работает, если Турбо выключен",
+                () -> VelunHudView.animate(hudPreview));
 
         addToggle(context, "Premium • визуальный предпросмотр",
             VelunConfig.isLocalPremium, true);
@@ -130,8 +145,10 @@ public class VelunSettingsActivity extends BaseFragment {
             .setItems(new String[]{"Обычная", "Чёрный аметист", "Неоновая слива"}, (d, which) -> {
                 VelunConfig.themeMode = which;
                 VelunConfig.saveSettings();
+                Theme.refreshThemeColors();
                 cell.setTextAndValue("Чёрно-фиолетовые темы", VelunConfig.themeName(), true);
-                android.widget.Toast.makeText(context, "Перезапустите VelunGram для применения темы.", android.widget.Toast.LENGTH_SHORT).show();
+                refreshAppearance();
+                android.widget.Toast.makeText(context, "Тема применена. Откройте другой экран для полного обновления.", android.widget.Toast.LENGTH_SHORT).show();
             }).show());
     }
 
@@ -162,11 +179,61 @@ public class VelunSettingsActivity extends BaseFragment {
             VelunConfig.iosAppearance = !VelunConfig.iosAppearance;
             cell.setTextAndCheck(title, VelunConfig.iosAppearance, true);
             VelunConfig.saveSettings();
+            Theme.refreshThemeColors();
+            refreshAppearance();
             updatePreview();
             android.widget.Toast.makeText(context,
-                "Цвета iOS применяются к новым экранам. Перезапустите приложение для полного обновления.",
+                "iOS-палитра обновлена. Новые экраны используют выбранные цвета.",
                 android.widget.Toast.LENGTH_LONG).show();
         });
+    }
+
+    private void addAnimationToggle(Context context) {
+        final String title = "Плавные HUD-анимации";
+        TextCheckCell cell = new TextCheckCell(context);
+        cell.setTextAndCheck(title, VelunConfig.demoAnimations, true);
+        cell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+        rows.addView(cell, new LinearLayout.LayoutParams(-1, AndroidUtilities.dp(51)));
+        cell.setOnClickListener(v -> {
+            VelunConfig.demoAnimations = !VelunConfig.demoAnimations;
+            VelunConfig.saveSettings();
+            cell.setTextAndCheck(title, VelunConfig.demoAnimations, true);
+            updatePreview();
+        });
+    }
+
+    private void addDemoAction(Context context, String title, String subtitle, Runnable action) {
+        TextDetailCell cell = new TextDetailCell(context);
+        cell.setTextAndValue(title, subtitle, true);
+        cell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+        rows.addView(cell, new LinearLayout.LayoutParams(-1, AndroidUtilities.dp(68)));
+        cell.setOnClickListener(v -> action.run());
+    }
+
+    private void refreshAppearance() {
+        if (fragmentView != null) {
+            fragmentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
+        }
+        for (int i = 0; i < rows.getChildCount(); i++) {
+            View child = rows.getChildAt(i);
+            if (child instanceof TextCheckCell || child instanceof TextDetailCell) {
+                child.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            }
+        }
+        updatePreview();
+    }
+
+    private void refreshHud() {
+        if (rows == null || hudPreview == null) return;
+        int index = rows.indexOfChild(hudPreview);
+        if (index < 0) return;
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(AndroidUtilities.dp(12), AndroidUtilities.dp(4),
+                AndroidUtilities.dp(12), AndroidUtilities.dp(12));
+        rows.removeViewAt(index);
+        hudPreview = VelunHudView.createPreview(rows.getContext());
+        rows.addView(hudPreview, index, params);
+        VelunHudView.animate(hudPreview);
     }
 
     private void addToggle(Context context, String text, boolean state, boolean premium) {
@@ -253,5 +320,6 @@ public class VelunSettingsActivity extends BaseFragment {
             + " • TON " + VelunConfig.tonBalance
             + " • GRAM " + VelunConfig.gramBalance;
         preview.setTextAndValue("Только визуальный режим", status, false);
+        refreshHud();
     }
 }
