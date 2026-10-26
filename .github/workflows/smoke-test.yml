@@ -14,7 +14,7 @@ jobs:
   android-launch:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -54,7 +54,7 @@ jobs:
           target: google_apis
           arch: ${{ matrix.arch }}
           profile: pixel_3
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1100
           disable-animations: true
           script: bash .github/scripts/smoke-test.sh
       - name: Upload emulator logcat

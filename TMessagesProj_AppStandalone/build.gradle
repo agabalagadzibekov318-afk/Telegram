@@ -87,8 +87,9 @@ android {
             jniDebuggable false
             signingConfig signingConfigs.release
             applicationIdSuffix ".web"
-            minifyEnabled true
-            shrinkResources true
+            // Compatibility build: avoid R8 stripping reflective Telegram code on vendor Android ROMs.
+            minifyEnabled false
+            shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), '../TMessagesProj/proguard-rules.pro'
             ndk.debugSymbolLevel = 'FULL'
