@@ -1,11 +1,6 @@
 name: VelunGram launch smoke test
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - '.github/workflows/smoke-test.yml'
-      - '.github/scripts/smoke-test.sh'
   workflow_run:
     workflows: ['Build VelunGram APK']
     types: [completed]
@@ -19,7 +14,26 @@ jobs:
   android-launch:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - android: '6.0'
+            api: 23
+            arch: x86
+          - android: '8.0'
+            api: 26
+            arch: x86
+          - android: '10'
+            api: 29
+            arch: ${{ matrix.arch }}
+          - android: '12'
+            api: 31
+            arch: x86_64
+          - android: '14'
+            api: 34
+            arch: x86_64
     steps:
       - uses: actions/checkout@v4
       - name: Download APK from completed development build
@@ -33,10 +47,10 @@ jobs:
         run: |
           test -s dist/VelunGram.apk
           ls -lh dist/VelunGram.apk
-      - name: Boot Android emulator and test launch
+      - name: Boot Android ${{ matrix.android }} emulator and test launch
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: ${{ matrix.api }}
           target: google_apis
           arch: x86_64
           profile: pixel_3
@@ -47,7 +61,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: VelunGram-launch-logcat
+          name: VelunGram-launch-logcat-android-${{ matrix.api }}
           path: smoke-test-logs/
           if-no-files-found: ignore
           retention-days: 7
