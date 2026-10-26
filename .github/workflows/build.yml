@@ -70,9 +70,11 @@ jobs:
               content = re.sub(r'public static int APP_ID = [^;]+;', f'public static int APP_ID = {api_id};', content)
               content = re.sub(r'public static String APP_HASH = [^;]+;', 'public static String APP_HASH = ' + json.dumps(api_hash) + ';', content)
           else:
-              print('WARNING: No personal Telegram API credentials provided. APK will not support login until you set both secrets.')
-              content = re.sub(r'public static int APP_ID = [^;]+;', 'public static int APP_ID = 0;', content)
-              content = re.sub(r'public static String APP_HASH = [^;]+;', 'public static String APP_HASH = "";', content)
+              # Telegram's public sample app ID/hash from upstream source. TESTING ONLY.
+              # Not approved for public distribution and can return API_ID_PUBLISHED_FLOOD.
+              print('WARNING: Using Telegram public SAMPLE API credentials: development tests only, login may be blocked.')
+              content = re.sub(r'public static int APP_ID = [^;]+;', 'public static int APP_ID = 4;', content)
+              content = re.sub(r'public static String APP_HASH = [^;]+;', 'public static String APP_HASH = "014b35b6184100b085b0d0572f9b5103";', content)
           content = content.replace('public static boolean SUPPORTS_PASSKEYS = true;', 'public static boolean SUPPORTS_PASSKEYS = false;')
           vars_path.write_text(content, encoding='utf-8')
           package_names = ['org.telegram.messenger', 'org.velungram.messenger', 'org.velungram.messenger.web']
