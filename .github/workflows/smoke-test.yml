@@ -27,7 +27,7 @@ jobs:
             arch: x86
           - android: '10'
             api: 29
-            arch: ${{ matrix.arch }}
+            arch: x86_64
           - android: '12'
             api: 31
             arch: x86_64
@@ -52,7 +52,7 @@ jobs:
         with:
           api-level: ${{ matrix.api }}
           target: google_apis
-          arch: x86_64
+          arch: ${{ matrix.arch }}
           profile: pixel_3
           emulator-boot-timeout: 900
           disable-animations: true
