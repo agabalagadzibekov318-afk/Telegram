@@ -2881,7 +2881,13 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
         @Override
         public void onNextPressed(String code) {
-            if (getParentActivity() == null || nextPressed || isRequestingFirebaseSms) {
+            if (getParentActivity() == null) {
+                return;
+            }
+            if (nextPressed || isRequestingFirebaseSms) {
+                android.widget.Toast.makeText(getParentActivity(),
+                    "VelunGram: ожидается ответ Telegram. Проверьте подключение к интернету.",
+                    android.widget.Toast.LENGTH_LONG).show();
                 return;
             }
 
@@ -2995,6 +3001,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     }
                 });
                 phoneNumberConfirmView.show();
+                android.widget.Toast.makeText(getParentActivity(),
+                    "Подтвердите номер в появившемся окне, чтобы запросить код.",
+                    android.widget.Toast.LENGTH_LONG).show();
                 return;
             } else confirmedNumber = false;
 
@@ -3104,6 +3113,9 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             settings.allow_flashcall = simcardAvailable && allowCall && allowCancelCall && allowReadCallLog;
             settings.allow_missed_call = simcardAvailable && allowCall;
             settings.allow_app_hash = settings.allow_firebase = PushListenerController.GooglePushListenerServiceProvider.INSTANCE.hasServices();
+            // Offline Firebase placeholders are NOT a working SMS verification service.
+            // Never advertise Firebase phone auth to Telegram without a real project.
+            settings.allow_firebase = settings.allow_firebase && BuildVars.VELUN_FIREBASE_CONFIGURED;
             if (forceDisableSafetyNet || TextUtils.isEmpty(BuildVars.SAFETYNET_KEY)) {
                 settings.allow_firebase = false;
             }
@@ -3222,7 +3234,15 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                     }
                 } else {
                     if (error.text != null) {
-                        if (error.text.contains("SESSION_PASSWORD_NEEDED")) {
+                        if (error.text.contains("API_ID_PUBLISHED_FLOOD")
+                                || error.text.contains("API_ID_INVALID")
+                                || error.text.contains("API_HASH_INVALID")) {
+                            needShowAlert("VelunGram — вход недоступен",
+                                "Telegram отклонил API-ключ этого клиента (" + error.text + ").\\n\\n" +
+                                "Сейчас используется тестовый ключ. Для отправки настоящего кода нужен API ID и API HASH, " +
+                                "зарегистрированные для VelunGram на my.telegram.org. " +
+                                "Повторные попытки с тем же ключом не помогут.");
+                        } else if (error.text.contains("SESSION_PASSWORD_NEEDED")) {
                             TL_account.getPassword req2 = new TL_account.getPassword();
                             ConnectionsManager.getInstance(currentAccount).sendRequest(req2, (response1, error1) -> AndroidUtilities.runOnUIThread(() -> {
                                 nextPressed = false;
@@ -3261,6 +3281,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
                         } else if (error.code != -1000) {
                             AlertsCreator.processError(currentAccount, error, LoginActivity.this, req, phoneInputData.phoneNumber);
+                        } else {
+                            needShowAlert("VelunGram — нет ответа",
+                                "Не удалось получить ответ от Telegram. Проверьте интернет и попробуйте ещё раз. " +
+                                "Если ошибка повторится, возможна блокировка тестового API-ключа.");
                         }
                     }
                 }

@@ -76,17 +76,20 @@ jobs:
               content = re.sub(r'public static int APP_ID = [^;]+;', 'public static int APP_ID = 4;', content)
               content = re.sub(r'public static String APP_HASH = [^;]+;', 'public static String APP_HASH = "014b35b6184100b085b0d0572f9b5103";', content)
           content = content.replace('public static boolean SUPPORTS_PASSKEYS = true;', 'public static boolean SUPPORTS_PASSKEYS = false;')
-          vars_path.write_text(content, encoding='utf-8')
           package_names = ['org.telegram.messenger', 'org.velungram.messenger', 'org.velungram.messenger.web']
           service_b64 = os.environ.get('VELUN_GOOGLE_SERVICES_B64', '').strip()
           if service_b64:
               decoded = base64.b64decode(service_b64)
               cfg = json.loads(decoded)
+              content = content.replace('public static boolean VELUN_FIREBASE_CONFIGURED = false;',
+                  'public static boolean VELUN_FIREBASE_CONFIGURED = true;')
               names = {c['client_info']['android_client_info']['package_name'] for c in cfg.get('client', [])}
               if not set(package_names).issubset(names):
                   raise SystemExit('The Firebase JSON must include all required package names: ' + ', '.join(package_names))
           else:
-              print('WARNING: Missing Firebase secret; using offline placeholders. Push notifications will not work.')
+              print('WARNING: Missing Firebase secret; disabling Firebase code delivery and using offline placeholders.')
+              content = re.sub(r'public static String SAFETYNET_KEY = [^;]+;',
+                  'public static String SAFETYNET_KEY = "";', content)
               cfg = {
                   'project_info': {'project_number': '111111111111', 'project_id': 'velungram-placeholder', 'storage_bucket': 'velungram-placeholder.appspot.com'},
                   'client': [{
@@ -99,6 +102,7 @@ jobs:
                   'configuration_version': '1'
               }
               decoded = json.dumps(cfg, indent=2).encode('utf-8')
+          vars_path.write_text(content, encoding='utf-8')
           for path in ['TMessagesProj/google-services.json', 'TMessagesProj_AppStandalone/google-services.json']:
               pathlib.Path(path).write_bytes(decoded)
           PY
