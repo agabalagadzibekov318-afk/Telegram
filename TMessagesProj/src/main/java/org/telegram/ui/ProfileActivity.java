@@ -629,6 +629,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int passwordSuggestionSectionRow;
     private int passwordSuggestionRow;
     private int settingsSectionRow;
+    // Shown only for this account's own local profile; nothing is published to Telegram.
+    private int velunHudRow;
     private int settingsSectionRow2;
     private int notificationRow;
     private int languageRow;
@@ -10513,6 +10515,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         graceSuggestionSectionRow = -1;
         passwordSuggestionRow = -1;
         settingsSectionRow = -1;
+        velunHudRow = -1;
         settingsSectionRow2 = -1;
         notificationRow = -1;
         languageRow = -1;
@@ -10660,6 +10663,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else {
                     emptyRow = rowCount++;
                 }
+            }
+
+            if (user != null && UserObject.isUserSelf(user) && myProfile) {
+                velunHudRow = rowCount++;
             }
 
             if (UserObject.isUserSelf(user) && !myProfile) {
@@ -13171,7 +13178,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 VIEW_TYPE_TEXT_DETAIL_MULTILINE_2 = 30,
                 VIEW_TYPE_EMPTY2 = 31,
                 VIEW_TYPE_TEXT2 = 32,
-                VIEW_TYPE_LINKED_COMMUNITY = 33
+                VIEW_TYPE_LINKED_COMMUNITY = 33,
+                VIEW_TYPE_VELUN_HUD = 34
                         ;
 
         private Context mContext;
@@ -13229,6 +13237,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             return dontApplyPeerColor(color, false);
                         }
                     };
+                    break;
+                }
+                case VIEW_TYPE_VELUN_HUD: {
+                    FrameLayout holder = new FrameLayout(mContext);
+                    holder.setPadding(dp(12), dp(6), dp(12), dp(8));
+                    view = holder;
                     break;
                 }
                 case VIEW_TYPE_TEXT: {
@@ -13485,6 +13499,16 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             switch (holder.getItemViewType()) {
+                case VIEW_TYPE_VELUN_HUD: {
+                    FrameLayout hudHolder = (FrameLayout) holder.itemView;
+                    hudHolder.removeAllViews();
+                    org.telegram.messenger.VelunConfig.loadSettings();
+                    View hud = VelunHudView.createPreview(mContext);
+                    hudHolder.addView(hud, new FrameLayout.LayoutParams(-1, -2));
+                    hud.setOnClickListener(v -> VelunHudView.showPreviewDialog(mContext));
+                    VelunHudView.animate(hud);
+                    break;
+                }
                 case VIEW_TYPE_HEADER:
                     HeaderCell headerCell = (HeaderCell) holder.itemView;
                     if (position == infoHeaderRow) {
@@ -14369,6 +14393,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
         @Override
         public int getItemViewType(int position) {
+            if (position == velunHudRow) return VIEW_TYPE_VELUN_HUD;
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
