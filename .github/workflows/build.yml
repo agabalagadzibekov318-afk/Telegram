@@ -143,6 +143,35 @@ jobs:
           cp "$APK" dist/VelunGram.apk
           ls -lh dist/VelunGram.apk
 
+      - name: Validate APK before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=dist/VelunGram.apk
+          test -s "$APK"
+          unzip -t "$APK" | tail -n 2
+          test "$(unzip -Z1 "$APK" | grep -c '^AndroidManifest.xml
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelunGram-APK
+          path: dist/VelunGram.apk
+          if-no-files-found: error
+          retention-days: 30
+)" -eq 1
+          test "$(unzip -Z1 "$APK" | grep -c '^classes.dex
+        uses: actions/upload-artifact@v4
+        with:
+          name: VelunGram-APK
+          path: dist/VelunGram.apk
+          if-no-files-found: error
+          retention-days: 30
+)" -eq 1
+          BUILD_TOOLS="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/36.0.0"
+          "$BUILD_TOOLS/zipalign" -c -v 4 "$APK"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | head -n 12
+          echo "APK archive, manifest, DEX, alignment and signature verified."
+
       - name: Upload VelunGram APK
         uses: actions/upload-artifact@v4
         with:
